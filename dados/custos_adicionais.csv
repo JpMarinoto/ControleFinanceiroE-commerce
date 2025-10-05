@@ -1,5 +1,5 @@
-skuVariacao,custoFixo,custoMarketing,custoImposto,custoEmbalagem
-ArandelaPreta-4uni-Quente,0,0,0,1.59
-ArandelaPreta-4uni-Fria,0,0,0,1.59
-ArandelaBranca-4uni-Quente,0,0,0,1.59
-ArandelaBranca-4uni-Fria,0,0,0,1.59
+skuVariacao,embalagem,etiqueta,fita,maoDeObra,impostoNfe,outrosCustos
+ArandelaPreta-4uni-Quente,0.4,0.09,1.0,0,0.1,0
+ArandelaPreta-4uni-Fria,0.4,0.09,1.0,0,0.1,0
+ArandelaBranca-4uni-Quente,0.4,0.09,1.0,0,0.1,0
+ArandelaBranca-4uni-Fria,0.4,0.09,1.0,0,0.1,0
