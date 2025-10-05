@@ -1,11 +1,20 @@
-SKU_Variacao,SKU_Item,Quantidade_Item
-KV001-AZ,IT001,1
-KV001-AZ,IT002,2
-KV001-AZ,IT003,2
-KV001-AZ,IT004,1
-KV001-AZ,IT005,3
-KV001-RS,IT001,1
-KV001-RS,IT002,2
-KV001-RS,IT003,2
-KV001-RS,IT004,1
-KV001-RS,IT005,3
+skuVariacao,skuItem,quantidadeItem
+// Receita do Kit Preto com Luz Quente
+ArandelaPreta-4uni-Quente,IT007,4
+ArandelaPreta-4uni-Quente,IT008,4
+ArandelaPreta-4uni-Quente,IT009,1
+
+// Receita do Kit Preto com Luz Fria
+ArandelaPreta-4uni-Fria,IT007,4
+ArandelaPreta-4uni-Fria,IT012,4
+ArandelaPreta-4uni-Fria,IT009,1
+
+// Receita do Kit Branco com Luz Quente
+ArandelaBranca-4uni-Quente,IT011,4
+ArandelaBranca-4uni-Quente,IT008,4
+ArandelaBranca-4uni-Quente,IT009,1
+
+// Receita do Kit Branco com Luz Fria
+ArandelaBranca-4uni-Fria,IT011,4
+ArandelaBranca-4uni-Fria,IT012,4
+ArandelaBranca-4uni-Fria,IT009,1
