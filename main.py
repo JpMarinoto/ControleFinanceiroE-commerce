@@ -26,21 +26,28 @@ except FileNotFoundError as e:
     exit()
 
 # --- 2. Carregamento e Limpeza do Arquivo de Vendas ---
-arquivoVendasShopee = "shopee_vendas.csv.xlsx - orders.csv" 
+arquivoVendasShopee = "Order.toship.20250905_20251005.xlsx" 
 try:
+    # Use read_csv ou read_excel dependendo do seu arquivo real
     dfShopee = pd.read_csv(f"{caminhoDados}{arquivoVendasShopee}", dtype=str)
     print(f"✅ Arquivo '{arquivoVendasShopee}' carregado com sucesso!")
 except FileNotFoundError:
     print(f"❌ Erro Crítico: Arquivo de vendas '{arquivoVendasShopee}' não encontrado.")
     exit()
 
+### NOVO PASSO: Limpeza automática dos nomes das colunas ###
+dfShopee.columns = dfShopee.columns.str.strip()
+print("ℹ️  Nomes das colunas após limpeza automática:")
+print(dfShopee.columns.tolist())
+
+
 # Mapeamento expandido para a nova lógica
 mapaColunas = {
     "Data de criação do pedido": "dataPedido",
     "Número de referência SKU": "skuVenda",
     "Quantidade": "quantidade",
-    "Valor da transação do pedido": "totalPagoComprador", # NOVO PONTO DE PARTIDA
-    "Custo de Envio Real": "custoFrete",             # NOVO CUSTO ESSENCIAL
+    "Valor da transação do pedido": "totalPagoComprador",
+    "Custo de Envio Real": "custoFrete",
     "Taxa de comissão": "taxaComissao",
     "Taxa de serviço": "taxaServico",
     "Taxa de transação": "taxaTransacao",
@@ -71,15 +78,17 @@ dfVendas['cmvCalculado'] = dfVendas['skuVenda'].apply(lambda sku: calcularCmv(sk
 dfVendasSemCmv = dfVendas[dfVendas['cmvCalculado'].isnull()]
 dfVendas = dfVendas.dropna(subset=['cmvCalculado'])
 
-# Juntando os custos adicionais (custo fixo, marketing, etc.)
+# Juntando os custos adicionais
 for col in ['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']:
     if col in dfCustosAdicionais.columns:
         dfCustosAdicionais[col] = pd.to_numeric(dfCustosAdicionais[col], errors='coerce').fillna(0)
 dfVendas = pd.merge(dfVendas, dfCustosAdicionais, left_on='skuVenda', right_on='skuVariacao', how='left')
-for col in ['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']:
+for col in ['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem', 'skuVariacao']:
     if col not in dfVendas.columns:
         dfVendas[col] = 0
-    dfVendas[col].fillna(0, inplace=True)
+if 'skuVariacao' in dfVendas.columns:
+    dfVendas.drop(columns=['skuVariacao'], inplace=True)
+dfVendas[['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']] = dfVendas[['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']].fillna(0)
 
 
 # Totalizando custos por pedido
@@ -98,7 +107,7 @@ print("✅ Processamento finalizado.")
 
 
 # --- 4. Exibição dos Resultados ---
-print("\n--- 📈 RELATÓRIO DE LUCRO LÍQUIDO FINAL (v4.0) ---")
+print("\n--- 📈 RELATÓRIO DE LUCRO LÍQUIDO FINAL (v4.1) ---")
 colunasParaExibir = [
     'dataPedido', 'skuVenda', 'totalPagoComprador', 'totalCupons', 'custoFrete',
     'taxasMarketplace', 'cmvTotalPedido', 'custosAdicionaisTotal', 'lucroLiquidoReal'
