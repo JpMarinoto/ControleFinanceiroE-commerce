@@ -22,9 +22,9 @@ class ProdutoPai(Base):
     __tablename__ = "produtos_pai"
     idProdutoPai = Column(String, primary_key=True, index=True)
     nomeProdutoPai = Column(String, nullable=False)
-    custoUnidade = Column(Float, nullable=False)
-    quantidadeKit = Column(Integer, nullable=False)
-    custoInsumos = Column(Float, nullable=False)
+    custoUnidade = Column(Float, nullable=False, default=0.0)
+    quantidadeKit = Column(Integer, nullable=False, default=1)
+    custoInsumos = Column(Float, nullable=False, default=0.0)
     variacoes = relationship("Variacao", back_populates="produto_pai")
 
 class Variacao(Base):
@@ -53,10 +53,11 @@ class LancamentosVendas(Base):
     skuVenda = Column(String, nullable=False, index=True)
     quantidade = Column(Integer, nullable=False)
     receitaBrutaProduto = Column(Float, nullable=False)
-    totalCupons = Column(Float, nullable=False) # COLUNA ESSENCIAL
-    custoFrete = Column(Float, nullable=False)
+    totalCupons = Column(Float, nullable=False)
     taxasMarketplace = Column(Float, nullable=False)
-    custoTotalCalculado = Column(Float, nullable=False)
+    # NOVA COLUNA para clareza no dashboard
+    valorVendaLiquido = Column(Float, nullable=False)
+    custoTotalCalculado = Column(Float, nullable=False) # Custo UNITÁRIO do produto
     lucroLiquidoReal = Column(Float, nullable=False)
 
 # --- 3. Função para Criar o Banco de Dados ---
