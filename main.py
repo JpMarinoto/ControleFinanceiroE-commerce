@@ -20,7 +20,7 @@ try:
     
     dfItens['custoUnitarioAquisicao'] = pd.to_numeric(dfItens['custoUnitarioAquisicao'])
     dfComposicao['quantidadeItem'] = pd.to_numeric(dfComposicao['quantidadeItem'])
-    print("✅ Arquivos de base (itens, composição, custos adic.) carregados!")
+    print("✅ Arquivos de base carregados!")
 except FileNotFoundError as e:
     print(f"❌ Erro Crítico: Arquivo base '{e.filename}' não encontrado.")
     exit()
@@ -28,51 +28,47 @@ except FileNotFoundError as e:
 # --- 2. Carregamento e Limpeza do Arquivo de Vendas ---
 arquivoVendasShopee = "Order.toship.20250905_20251005.xlsx" 
 try:
-    # Use read_csv ou read_excel dependendo do seu arquivo real
-    dfShopee = pd.read_csv(f"{caminhoDados}{arquivoVendasShopee}", dtype=str)
+    dfShopee = pd.read_excel(f"{caminhoDados}{arquivoVendasShopee}", dtype=str)
     print(f"✅ Arquivo '{arquivoVendasShopee}' carregado com sucesso!")
 except FileNotFoundError:
     print(f"❌ Erro Crítico: Arquivo de vendas '{arquivoVendasShopee}' não encontrado.")
     exit()
 
-### NOVO PASSO: Limpeza automática dos nomes das colunas ###
 dfShopee.columns = dfShopee.columns.str.strip()
-print("ℹ️  Nomes das colunas após limpeza automática:")
-print(dfShopee.columns.tolist())
-
-
-# Mapeamento expandido para a nova lógica
 mapaColunas = {
-    "Data de criação do pedido": "dataPedido",
-    "Número de referência SKU": "skuVenda",
-    "Quantidade": "quantidade",
-    "Valor da transação do pedido": "totalPagoComprador",
-    "Custo de Envio Real": "custoFrete",
-    "Taxa de comissão": "taxaComissao",
-    "Taxa de serviço": "taxaServico",
-    "Taxa de transação": "taxaTransacao",
-    "Total do Vendedor do Desconto do Produto": "descontoVendedor",
-    "Reembolso da Shopee": "reembolsoShopee"
+    "Data de criação do pedido": "dataPedido", "Número de referência SKU": "skuVenda",
+    "Quantidade": "quantidade", "Preço acordado": "receitaBrutaProduto",
+    "Valor estimado do frete": "custoFrete", "Taxa de comissão": "taxaComissao",
+    "Taxa de serviço": "taxaServico", "Taxa de transação": "taxaTransacao",
+    "Cupom do vendedor": "cupomVendedor", "Cupom Shopee": "cupomShopee",
+    "Reembolso Shopee": "reembolsoShopee"
 }
 dfVendas = dfShopee.rename(columns=mapaColunas)
 
-# Lógica robusta para garantir que colunas numéricas existam
-colunasNumericasEsperadas = [
-    'quantidade', 'totalPagoComprador', 'custoFrete', 'taxaComissao', 'taxaServico', 
-    'taxaTransacao', 'descontoVendedor', 'reembolsoShopee'
-]
-for col in colunasNumericasEsperadas:
-    if col not in dfVendas.columns:
-        dfVendas[col] = 0
-    dfVendas[col] = pd.to_numeric(dfVendas[col], errors='coerce').fillna(0)
+### --- SEÇÃO DE DIAGNÓSTICO --- ###
+print("\n--- 🕵️  DIAGNÓSTICO DE SKUs ---")
+print("\nSKUs ÚNICOS ENCONTRADOS NO ARQUIVO DE VENDAS (SHOPEE):")
+print(sorted(dfVendas['skuVenda'].unique().tolist()))
 
-# Consolidação de custos e informações
+print("\nSKUs ÚNICOS CADASTRADOS NA COMPOSIÇÃO DE KITS:")
+print(sorted(dfComposicao['skuVariacao'].unique().tolist()))
+
+print("\nSKUs ÚNICOS CADASTRADOS NOS CUSTOS ADICIONAIS:")
+print(sorted(dfCustosAdicionais['skuVariacao'].unique().tolist()))
+print("--- FIM DO DIAGNÓSTICO ---\n")
+### ----------------------------- ###
+
+
+# Conversão para numérico e consolidação
+colunasNumericasEsperadas = ['quantidade', 'receitaBrutaProduto', 'custoFrete', 'taxaComissao', 'taxaServico', 'taxaTransacao', 'cupomVendedor', 'cupomShopee', 'reembolsoShopee']
+for col in colunasNumericasEsperadas:
+    if col not in dfVendas.columns: dfVendas[col] = 0
+    dfVendas[col] = pd.to_numeric(dfVendas[col], errors='coerce').fillna(0)
 dfVendas["taxasMarketplace"] = dfVendas["taxaComissao"] + dfVendas["taxaServico"] + dfVendas["taxaTransacao"]
-dfVendas["totalCupons"] = dfVendas["descontoVendedor"] + dfVendas["reembolsoShopee"]
+dfVendas["totalCupons"] = dfVendas["cupomVendedor"] + dfVendas["cupomShopee"] + dfVendas["reembolsoShopee"]
 print("✅ Limpeza e mapeamento do arquivo de vendas concluídos.")
 
-
-# --- 3. Processamento e Cálculo do Lucro (Lógica Aprimorada) ---
+# --- 3. Processamento e Cálculo do Lucro ---
 print("⚙️  Iniciando processamento e cálculo de lucro...")
 dfVendas['cmvCalculado'] = dfVendas['skuVenda'].apply(lambda sku: calcularCmv(sku, dfComposicao, dfItens))
 dfVendasSemCmv = dfVendas[dfVendas['cmvCalculado'].isnull()]
@@ -83,35 +79,19 @@ for col in ['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']:
     if col in dfCustosAdicionais.columns:
         dfCustosAdicionais[col] = pd.to_numeric(dfCustosAdicionais[col], errors='coerce').fillna(0)
 dfVendas = pd.merge(dfVendas, dfCustosAdicionais, left_on='skuVenda', right_on='skuVariacao', how='left')
-for col in ['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem', 'skuVariacao']:
-    if col not in dfVendas.columns:
-        dfVendas[col] = 0
-if 'skuVariacao' in dfVendas.columns:
-    dfVendas.drop(columns=['skuVariacao'], inplace=True)
 dfVendas[['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']] = dfVendas[['custoFixo', 'custoMarketing', 'custoImposto', 'custoEmbalagem']].fillna(0)
 
-
-# Totalizando custos por pedido
+# Cálculos
+dfVendas['receitaTotalProduto'] = dfVendas['receitaBrutaProduto'] * dfVendas['quantidade']
 dfVendas['cmvTotalPedido'] = dfVendas['cmvCalculado'] * dfVendas['quantidade']
 dfVendas['custosAdicionaisTotal'] = (dfVendas['custoFixo'] + dfVendas['custoMarketing'] + dfVendas['custoImposto'] + dfVendas['custoEmbalagem']) * dfVendas['quantidade']
-
-# FÓRMULA DE LUCRO LÍQUIDO FINAL (Top-Down)
-dfVendas['lucroLiquidoReal'] = (
-    dfVendas['totalPagoComprador'] -
-    dfVendas['custoFrete'] -
-    dfVendas['taxasMarketplace'] -
-    dfVendas['cmvTotalPedido'] -
-    dfVendas['custosAdicionaisTotal']
-)
+dfVendas['lucroLiquidoReal'] = (dfVendas['receitaTotalProduto'] - dfVendas['custoFrete'] - dfVendas['taxasMarketplace'] - dfVendas['cmvTotalPedido'] - dfVendas['custosAdicionaisTotal'])
 print("✅ Processamento finalizado.")
 
 
 # --- 4. Exibição dos Resultados ---
-print("\n--- 📈 RELATÓRIO DE LUCRO LÍQUIDO FINAL (v4.1) ---")
-colunasParaExibir = [
-    'dataPedido', 'skuVenda', 'totalPagoComprador', 'totalCupons', 'custoFrete',
-    'taxasMarketplace', 'cmvTotalPedido', 'custosAdicionaisTotal', 'lucroLiquidoReal'
-]
+print("\n--- 📈 RELATÓRIO DE LUCRO LÍQUIDO (v4.6 - Diagnóstico) ---")
+colunasParaExibir = ['dataPedido', 'skuVenda', 'receitaTotalProduto', 'totalCupons', 'custoFrete', 'taxasMarketplace', 'cmvTotalPedido', 'custosAdicionaisTotal', 'lucroLiquidoReal']
 print(dfVendas[colunasParaExibir].round(2))
 
 if not dfVendasSemCmv.empty:
