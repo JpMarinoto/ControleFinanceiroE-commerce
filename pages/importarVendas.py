@@ -1,7 +1,7 @@
-# pages/importar_vendas.py
+# pages/importarVendas.py
 import streamlit as st
 import pandas as pd
-from database import SessionLocal, Variacao, LancamentosVendas
+from database import SessionLocal, Variacao, LancamentosVendas, ProdutoPai # <-- IMPORT CORRIGIDO
 from utils.helpers import calcular_custo_pelo_produto_pai
 
 def page_importar_vendas():
@@ -14,9 +14,13 @@ def page_importar_vendas():
         return None
 
     if 'uploaded_file' not in st.session_state: st.session_state.uploaded_file = None
+    if 'skus_nao_encontrados' not in st.session_state: st.session_state.skus_nao_encontrados = []
+    
     uploaded_file = st.file_uploader("Escolha seu arquivo de vendas (.xlsx)", type="xlsx")
 
-    if uploaded_file: st.session_state.uploaded_file = uploaded_file
+    if uploaded_file:
+        st.session_state.uploaded_file = uploaded_file
+        st.session_state.skus_nao_encontrados = []
 
     if st.session_state.uploaded_file is not None:
         try:
@@ -81,16 +85,51 @@ def page_importar_vendas():
                     
                     if lancamentos_para_salvar:
                         db.add_all(lancamentos_para_salvar); db.commit()
-                        st.success(f"✅ {len(pedidos_unicos)} novos pedidos ({len(lancamentos_para_salvar)} itens) da plataforma '{plataforma_selecionada}' foram processados e salvos!")
-                    if vendas_duplicadas > 0: st.info(f"ℹ️ {vendas_duplicadas} itens de pedidos já existentes foram ignorados.")
+                        st.session_state.msg_sucesso = f"✅ {len(pedidos_unicos)} novos pedidos ({len(lancamentos_para_salvar)} itens) da plataforma '{plataforma_selecionada}' foram processados e salvos!"
+                    if vendas_duplicadas > 0: st.session_state.msg_info = f"ℹ️ {vendas_duplicadas} itens de pedidos já existentes foram ignorados."
                     st.session_state.skus_nao_encontrados = skus_nao_encontrados
-                    st.rerun()
+                    # st.rerun() # REMOVIDO PARA AS MENSAGENS PERSISTIREM
+            
         except Exception as e:
             st.error(f"Ocorreu um erro ao processar o arquivo: {e}")
         finally:
             db.close()
 
-    # Seção para adicionar SKUs faltantes (sem alterações)
-    if 'skus_nao_encontrados' in st.session_state and st.session_state.skus_nao_encontrados:
-        # ...
-        pass
+    # Mostra as mensagens de sucesso/info se existirem
+    if 'msg_sucesso' in st.session_state:
+        st.success(st.session_state.msg_sucesso)
+        del st.session_state.msg_sucesso # Limpa para não mostrar de novo
+    if 'msg_info' in st.session_state:
+        st.info(st.session_state.msg_info)
+        del st.session_state.msg_info # Limpa para não mostrar de novo
+
+    # Seção para adicionar SKUs faltantes
+    if st.session_state.skus_nao_encontrados:
+        skus_faltantes = st.session_state.skus_nao_encontrados
+        st.warning(f"ALERTA: {len(skus_faltantes)} SKUs da sua planilha não foram encontrados ou não estão associados a um Produto Pai com custo definido.")
+        with st.expander("➕ Adicionar SKUs Faltantes Rapidamente"):
+            db_gen = SessionLocal(); db = db_gen
+            produtos_pai_lista = {p.idProdutoPai: p.nomeProdutoPai for p in db.query(ProdutoPai).all()}
+            if not produtos_pai_lista:
+                st.error("Nenhum 'Produto Pai' cadastrado. Vá para 'Cadastros Gerais' para criar um antes de adicionar SKUs.")
+            else:
+                for sku in skus_faltantes:
+                    with st.form(f"form_add_{sku}", clear_on_submit=True):
+                        st.markdown(f"**Cadastrar SKU:** `{sku}`")
+                        nome_variacao = st.text_input("Nome da Variação*", key=f"nome_{sku}")
+                        id_pai_selecionado = st.selectbox("Associar ao Produto Pai*", options=list(produtos_pai_lista.keys()), format_func=lambda x: f"{x} - {produtos_pai_lista[x]}", key=f"pai_{sku}")
+                        if st.form_submit_button(f"Salvar SKU {sku}"):
+                            if not nome_variacao:
+                                st.warning("O nome da variação é obrigatório.")
+                            else:
+                                db_commit_gen = SessionLocal(); db_commit = db_commit_gen
+                                if db_commit.query(Variacao).filter_by(skuVariacao=sku).first():
+                                    st.error(f"O SKU '{sku}' já existe no banco de dados.")
+                                else:
+                                    db_commit.add(Variacao(skuVariacao=sku, nomeVariacao=nome_variacao, idProdutoPai=id_pai_selecionado))
+                                    db_commit.commit()
+                                    st.success(f"SKU '{sku}' salvo com sucesso!")
+                                    st.session_state.skus_nao_encontrados.remove(sku)
+                                    st.rerun()
+                                db_commit.close()
+            db.close()

@@ -23,7 +23,9 @@ def page_relatorios():
 
     dados_completos = pd.merge(vendas_df, variacoes_df, left_on='skuVenda', right_on='skuVariacao')
     dados_completos = pd.merge(dados_completos, produtos_pai_df, on='idProdutoPai')
-    dados_completos = pd.merge(dados_completos, categorias_df, left_on='categoria_id', right_on='id', suffixes=('', '_cat'))
+    # Renomeia a coluna 'nome' da categoria para evitar conflito antes do merge
+    categorias_df = categorias_df.rename(columns={'nome': 'nome_categoria'})
+    dados_completos = pd.merge(dados_completos, categorias_df, left_on='categoria_id', right_on='id')
     dados_completos['dataPedido'] = pd.to_datetime(dados_completos['dataPedido'])
     
     st.sidebar.header("Filtros do Relatório")
@@ -31,7 +33,7 @@ def page_relatorios():
     plataformas_disponiveis = dados_completos['plataforma'].unique()
     plataformas_selecionadas_report = st.sidebar.multiselect("Filtrar por Plataforma", options=plataformas_disponiveis, key="report_platform_filter")
 
-    categorias_dict = {cat.id: cat.nome for _, cat in categorias_df.iterrows()}
+    categorias_dict = {cat.id: cat.nome_categoria for _, cat in categorias_df.iterrows()}
     categorias_selecionadas = st.sidebar.multiselect("Filtrar por Categoria", options=list(categorias_dict.keys()), format_func=lambda x: categorias_dict[x], key="report_cat_filter")
     
     min_date = dados_completos['dataPedido'].min().date(); max_date = dados_completos['dataPedido'].max().date()
@@ -57,20 +59,29 @@ def page_relatorios():
 
     dados_filtrados['grupoProduto'] = dados_filtrados['nomeVariacao'].apply(extrair_grupo)
 
-    relatorio_grupo = dados_filtrados.groupby('grupoProduto').agg(
+    # Agrega os valores, agora incluindo a categoria no agrupamento
+    relatorio_grupo = dados_filtrados.groupby(['grupoProduto', 'nome_categoria']).agg(
         unidadesVendidas=('unidadesVendidas', 'sum'),
         gastoTotal=('gastoProduto', 'sum')
     ).reset_index()
     
     relatorio_grupo = relatorio_grupo.sort_values(by='unidadesVendidas', ascending=False)
+    
+    # Renomeia as colunas para exibição
     relatorio_grupo = relatorio_grupo.rename(columns={
         'grupoProduto': 'Grupo de Produto', 
+        'nome_categoria': 'Categoria',
         'unidadesVendidas': 'Total de Unidades Vendidas',
         'gastoTotal': 'Gasto Total (sem insumos)'
     })
     
+    # Reordena as colunas para uma melhor visualização
+    relatorio_grupo = relatorio_grupo[['Grupo de Produto', 'Categoria', 'Total de Unidades Vendidas', 'Gasto Total (sem insumos)']]
+
+    # Aplica o estilo para centralizar o texto
     st.dataframe(
-        relatorio_grupo,
-        column_config={"Gasto Total (sem insumos)": st.column_config.NumberColumn(format="R$ %.2f")},
+        relatorio_grupo.style.format({
+            "Gasto Total (sem insumos)": "R$ {:,.2f}"
+        }).set_properties(**{'text-align': 'center'}),
         use_container_width=True
     )

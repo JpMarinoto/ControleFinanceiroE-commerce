@@ -57,7 +57,7 @@ def page_dashboard():
     pedidos_total = vendas_filtradas['pedidoId'].nunique()
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Receita Bruta", f"R$ {receita_total_bruta:,.2f}"); col2.metric("Gasto Total", f"R$ {gasto_total:,.2f}", help="Custo dos Produtos + Taxas + Cupons")
+    col1.metric("Receita Bruta", f"R$ {receita_total_bruta:,.2f}"); col2.metric("Gasto Total", f"R$ {gasto_total:,.2f}", help="Custo dos Produtos + Insumos")
     col3.metric("Lucro Líquido", f"R$ {lucro_total:,.2f}"); col4.metric("Total de Pedidos", f"{pedidos_total}")
     
     st.markdown("---")
