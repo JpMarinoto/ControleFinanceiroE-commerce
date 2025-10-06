@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-import datetime
 
 # --- 1. Configuração do Banco de Dados ---
 DATABASE_URL = "sqlite:///controle_financeiro.db"
@@ -11,12 +10,11 @@ Base = declarative_base()
 
 # --- 2. Definição dos Modelos (Nossas Tabelas) ---
 
-class Item(Base):
-    __tablename__ = "itens"
-    skuItem = Column(String, primary_key=True, index=True)
-    nomeItem = Column(String, nullable=False)
-    custoUnitarioAquisicao = Column(Float, nullable=False)
-    composicoes = relationship("ComposicaoKit", back_populates="item")
+class Categoria(Base):
+    __tablename__ = "categorias"
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, nullable=False, unique=True)
+    produtos_pai = relationship("ProdutoPai", back_populates="categoria")
 
 class ProdutoPai(Base):
     __tablename__ = "produtos_pai"
@@ -25,6 +23,11 @@ class ProdutoPai(Base):
     custoUnidade = Column(Float, nullable=False, default=0.0)
     quantidadeKit = Column(Integer, nullable=False, default=1)
     custoInsumos = Column(Float, nullable=False, default=0.0)
+    
+    # --- NOVO RELACIONAMENTO ---
+    categoria_id = Column(Integer, ForeignKey("categorias.id"))
+    categoria = relationship("Categoria", back_populates="produtos_pai")
+    
     variacoes = relationship("Variacao", back_populates="produto_pai")
 
 class Variacao(Base):
@@ -33,16 +36,6 @@ class Variacao(Base):
     nomeVariacao = Column(String, nullable=False)
     idProdutoPai = Column(String, ForeignKey("produtos_pai.idProdutoPai"))
     produto_pai = relationship("ProdutoPai", back_populates="variacoes")
-    composicoes = relationship("ComposicaoKit", back_populates="variacao")
-
-class ComposicaoKit(Base):
-    __tablename__ = "composicao_kits"
-    id = Column(Integer, primary_key=True, index=True)
-    quantidadeItem = Column(Integer, nullable=False)
-    skuVariacao = Column(String, ForeignKey("variacoes.skuVariacao"), nullable=False)
-    skuItem = Column(String, ForeignKey("itens.skuItem"), nullable=False)
-    variacao = relationship("Variacao", back_populates="composicoes")
-    item = relationship("Item", back_populates="composicoes")
 
 class LancamentosVendas(Base):
     __tablename__ = "lancamentos_vendas"
@@ -55,9 +48,8 @@ class LancamentosVendas(Base):
     receitaBrutaProduto = Column(Float, nullable=False)
     totalCupons = Column(Float, nullable=False)
     taxasMarketplace = Column(Float, nullable=False)
-    # NOVA COLUNA para clareza no dashboard
     valorVendaLiquido = Column(Float, nullable=False)
-    custoTotalCalculado = Column(Float, nullable=False) # Custo UNITÁRIO do produto
+    custoTotalCalculado = Column(Float, nullable=False)
     lucroLiquidoReal = Column(Float, nullable=False)
 
 # --- 3. Função para Criar o Banco de Dados ---
