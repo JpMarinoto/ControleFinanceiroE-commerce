@@ -1,0 +1,10 @@
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+
+# Pastas de ambiente virtual
+venv/
+.venv/
+
+# Arquivos de IDEs (ex: VSCode)
+.vscode/
