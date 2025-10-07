@@ -24,3 +24,5 @@ if __name__ == '__main__':
 
     # Executa o servidor Streamlit diretamente do código
     streamlit.web.bootstrap.run(main_script_path, '', args, flag_options={})
+    
+    #comentario
